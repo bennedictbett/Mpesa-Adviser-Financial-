@@ -1,0 +1,64 @@
+#  Application 
+app:
+  name: "M-Pesa Financial Advisor"
+  version: "1.0.0"
+  description: "RAG-powered chatbot for M-Pesa and CBK financial documents"
+  debug: false
+
+#  Data Paths
+paths:
+  raw_data: "data/raw"               # drop your PDFs here
+  chroma_db: "data/chroma_db"        # ChromaDB vector store (auto-generated)
+
+# PDF Parsing 
+pdf:
+  supported_extensions:
+    - ".pdf"
+  extract_tables: true               # pdfplumber will extract tables too
+  min_page_chars: 50                 # skip pages with less than 50 chars (blank/cover pages)
+
+#  Text Splitting 
+splitter:
+  chunk_size: 800                    # characters per chunk
+  chunk_overlap: 150                 # overlap between chunks to preserve context
+  separators:
+    - "\n\n"                         # paragraph breaks first
+    - "\n"                           # then line breaks
+    - "."                            # then sentences
+    - " "                            # last resort: spaces
+
+# Embeddings
+embeddings:
+  provider: "openai"
+  model: "text-embedding-3-small"    # cheap, fast, high quality
+  dimensions: 1536                   # output vector size for this model
+
+# Vector Store 
+vectorstore:
+  collection_name: "mpesa_docs"      # ChromaDB collection name
+  distance_metric: "cosine"          # cosine similarity for semantic search
+
+# Retriever 
+retriever:
+  top_k: 5                           # number of chunks returned per query
+  score_threshold: 0.3               # minimum similarity score to include a chunk
+
+#  LLM
+llm:
+  provider: "anthropic"
+  model: "claude-sonnet-4-20250514"  # Claude Sonnet 4 - fast + accurate
+  max_tokens: 1024                   # max tokens in the response
+  temperature: 0.0                   # 0 = deterministic, factual answers only
+
+# API
+api:
+  host: "0.0.0.0"
+  port: 8000
+  reload: false                      # set true during local development only
+
+# Frontend 
+frontend:
+  api_url: "http://localhost:8000"   # Streamlit calls FastAPI here
+  page_title: "M-Pesa Financial Advisor"
+  page_icon: "💚"
+  max_upload_size_mb: 10             # reject PDFs larger than 10MB
