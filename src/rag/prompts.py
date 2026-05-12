@@ -1,6 +1,4 @@
 """
-src/rag/prompts.py
-------------------
 All prompt templates for the M-Pesa Financial Advisor RAG pipeline.
 
 No logic lives here — only strings.
