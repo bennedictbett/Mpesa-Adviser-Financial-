@@ -89,9 +89,8 @@ class FrontendSettings:
 
 # Secret settings loaded from .env 
 class SecretSettings(BaseSettings):
-    OPENAI_API_KEY:    str = Field(..., env="OPENAI_API_KEY")
-    ANTHROPIC_API_KEY: str = Field(..., env="ANTHROPIC_API_KEY")
-    APP_ENV:           str = Field("development", env="APP_ENV")
+    GROQ_API_KEY:  str = Field(..., env="GROQ_API_KEY")
+    APP_ENV:       str = Field("development", env="APP_ENV")
 
     class Config:
         env_file = ".env"
@@ -108,7 +107,7 @@ class Settings:
 
         print(settings.llm.model)           # claude-sonnet-4-20250514
         print(settings.splitter.chunk_size) # 800
-        print(settings.secrets.OPENAI_API_KEY)
+        print(settings.secrets.GROQ_API_KEY)
     """
     app:         AppSettings         = AppSettings()
     paths:       PathSettings        = PathSettings()

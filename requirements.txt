@@ -1,8 +1,15 @@
-# clRAG Framework
+# ── RAG Framework ────────────────────────────────────────────
 langchain>=0.3.25,<0.4.0
 langchain-community>=0.3.23,<0.4.0
-langchain-openai>=0.3.16,<0.4.0
-langchain-anthropic>=0.3.10,<0.4.0
+langchain-huggingface>=0.1.0
+langchain-groq>=0.2.0
+langchain-chroma>=0.2.0
+
+# Embeddings (free, runs locally) 
+sentence-transformers>=3.0.0
+
+# LLM (free, no card needed) 
+groq>=0.9.0
 
 # Vector Database 
 chromadb>=0.6.3,<0.7.0
@@ -11,33 +18,29 @@ chromadb>=0.6.3,<0.7.0
 pdfplumber>=0.11.4
 pypdf>=5.4.0
 
-# LLM Clients
-openai>=1.77.0
-anthropic>=0.51.0
-tiktoken
-
-# API Layer
+#  API Layer 
 fastapi>=0.115.0
 uvicorn>=0.34.0
 python-multipart>=0.0.20
 pydantic>=2.11.0
 pydantic-settings>=2.9.0
 
-# Utilities
-tqdm>=4.0.0 
-
-# Frontend
-streamlit>=1.45.0
-requests>=2.32.0
-
-# Config & Environment
+# Config & Environment 
 python-dotenv>=1.1.0
 pyyaml>=6.0.0
 
-# Testing
+#  Utilities 
+tqdm>=4.0.0
+tiktoken
+typing-extensions
+requests>=2.32.0
+
+# Testing 
 pytest>=8.3.0
 pytest-asyncio>=0.26.0
 httpx>=0.28.0
 
-# Compatibility
-typing-extensions
+# langchain-openai>=0.3.16,<0.4.0
+# openai>=1.77.0
+# langchain-anthropic>=0.3.10,<0.4.0
+# anthropic>=0.51.0

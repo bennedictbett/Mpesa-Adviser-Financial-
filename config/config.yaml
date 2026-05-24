@@ -29,9 +29,9 @@ splitter:
 
 # Embeddings
 embeddings:
-  provider: "openai"
-  model: "text-embedding-3-small"    # cheap, fast, high quality
-  dimensions: 1536                   # output vector size for this model
+  provider: "huggingface"
+  model: "sentence-transformers/all-MiniLM-L6-v2" 
+  dimensions: 384                  
 
 # Vector Store 
 vectorstore:
