@@ -1,10 +1,14 @@
 """
-Initialises and returns the Claude LLM client used by chain.py.
+Initialises and returns the LLM client used by chain.py.
 
-Responsibilities:
-  - Read LLM settings from config via settings object
-  - Initialise the ChatAnthropic client (LangChain wrapper around Claude)
-  - Expose a single get_llm() function that chain.py calls
+Currently configured to use Groq — completely free, no credit card
+required. Sign up at console.groq.com with just an email address.
+
+To switch back to Claude (Anthropic) later:
+  1. Change config.yaml: llm.provider: "anthropic"
+  2. Change config.yaml: llm.model: "claude-sonnet-4-20250514"
+  3. Add ANTHROPIC_API_KEY to .env
+  Nothing else changes.
 
 Only one file imports from here: chain.py
 """
@@ -12,7 +16,7 @@ Only one file imports from here: chain.py
 import logging
 from functools import lru_cache
 
-from langchain_anthropic import ChatAnthropic
+from langchain_groq import ChatGroq
 
 from src.rag import settings
 
@@ -20,34 +24,41 @@ logger = logging.getLogger(__name__)
 
 
 @lru_cache(maxsize=1)
-def get_llm() -> ChatAnthropic:
+def get_llm() -> ChatGroq:
     """
-    Initialise and return the Claude LLM client.
+    Initialise and return the Groq LLM client.
 
     Uses @lru_cache so the client is created only once
     and reused on every subsequent call — not rebuilt on every request.
 
+    Why Groq?
+      - Completely free tier — no credit card needed
+      - Sign up at console.groq.com with just an email
+      - Runs Llama 3.1 70B — high quality, fast responses
+      - LangChain wrapper means zero code changes when switching to Claude
+
     Returns:
-        ChatAnthropic: LangChain-wrapped Claude client ready for chain.py
+        ChatGroq: LangChain-wrapped Groq client ready for chain.py
 
     Raises:
-        ValueError: if ANTHROPIC_API_KEY is missing from .env
-        Exception:  if the LangChain/Anthropic client fails to initialise
+        ValueError: if GROQ_API_KEY is missing or not set in .env
+        Exception:  if the LangChain/Groq client fails to initialise
     """
-    api_key = settings.secrets.ANTHROPIC_API_KEY
+    api_key = settings.secrets.GROQ_API_KEY
 
-    if not api_key or api_key == "":
+    if not api_key or api_key == "your-groq-api-key-here":
         raise ValueError(
-            "ANTHROPIC_API_KEY is missing or not set in your .env file. "
-            "Please add it to use the LLM features."
+            "GROQ_API_KEY is missing or not set in your .env file. "
+            "Get your free key at https://console.groq.com — email only, no card needed."
         )
 
     logger.info(
-        f"Initialising LLM | provider: {settings.llm.provider} "
-        f"| model: {settings.llm.model}"
+        "Initialising LLM | provider: %s | model: %s",
+        settings.llm.provider,
+        settings.llm.model,
     )
 
-    llm = ChatAnthropic(
+    llm = ChatGroq(
         api_key=api_key,
         model=settings.llm.model,
         max_tokens=settings.llm.max_tokens,
