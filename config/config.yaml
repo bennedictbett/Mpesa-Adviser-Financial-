@@ -41,12 +41,12 @@ vectorstore:
 # Retriever 
 retriever:
   top_k: 5                           # number of chunks returned per query
-  score_threshold: 0.3               # minimum similarity score to include a chunk
+  score_threshold: -1.0               # minimum similarity score to include a chunk
 
 #  LLM
 llm:
-  provider: "anthropic"
-  model: "claude-sonnet-4-20250514"  # Claude Sonnet 4 - fast + accurate
+  provider: "groq"
+  model: "llama-3.3-70b-versatile"  # LLaMA 3.1 - fast + accurate
   max_tokens: 1024                   # max tokens in the response
   temperature: 0.0                   # 0 = deterministic, factual answers only
 
