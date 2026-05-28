@@ -57,7 +57,7 @@ jobs:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           APP_ENV: development
         run: |
-          pytest tests/ -v --tb=short --ignore=tests/__init__.py || true
+          pytest tests/ -v --tb=short --ignore=tests/__init__.py
 
   docker:
     name: Docker Build Check

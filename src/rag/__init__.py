@@ -89,12 +89,11 @@ class FrontendSettings:
 
 # Secret settings loaded from .env 
 class SecretSettings(BaseSettings):
-    GROQ_API_KEY:  str = Field(..., env="GROQ_API_KEY")
-    APP_ENV:       str = Field("development", env="APP_ENV")
+     GROQ_API_KEY: str = Field(..., validation_alias="GROQ_API_KEY")
+     APP_ENV:      str = Field("development", validation_alias="APP_ENV")
 
-    class Config:
-        env_file = ".env"
-        extra = "ignore"
+     model_config = {"env_file": ".env", "extra": "ignore"}
+
 
 
 # Master settings object

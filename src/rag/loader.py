@@ -109,6 +109,12 @@ def load_documents(data_dir: str | Path | None = None) -> list[dict]:
         f"{len(documents)}/{len(supported_files)} files loaded successfully"
     )
 
+    if not documents:
+        raise RuntimeError(
+            f"No text could be extracted from any files in '{raw_dir}'. "
+            f"All files may be scanned image PDFs."
+    )
+
     return documents
 
 
