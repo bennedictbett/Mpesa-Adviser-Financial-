@@ -1,0 +1,32 @@
+#  M-Pesa Financial Advisor — Docker Compose 
+# Runs the full app locally with one command:
+#   docker-compose up --build
+
+version: "3.9"
+
+services:
+
+  #  FastAPI backend
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mpesa-advisor-api
+    ports:
+      - "8000:8000"
+    environment:
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - APP_ENV=${APP_ENV:-development}
+    volumes:
+      # Mount chroma_db so it persists between container restarts
+      - ./data/chroma_db:/app/data/chroma_db
+      # Mount raw data so you can add PDFs without rebuilding
+      - ./data/raw:/app/data/raw
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped

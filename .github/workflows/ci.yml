@@ -62,11 +62,11 @@ jobs:
           # || true prevents failure when tests/ files are still empty
           # Remove || true once real tests are written in tests/
 
-  # Docker Build Check will be added back once app/main.py is complete
-  # docker:
-  #   name: Docker Build Check
-  #   runs-on: ubuntu-latest
-  #   needs: test
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - run: docker build -t mpesa-advisor:ci .
+  
+   docker:
+     name: Docker Build Check
+     runs-on: ubuntu-latest
+     needs: test
+     steps:
+       - uses: actions/checkout@v4
+       - run: docker build -t mpesa-advisor:ci .
