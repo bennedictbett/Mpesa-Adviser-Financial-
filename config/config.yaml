@@ -40,8 +40,9 @@ vectorstore:
 
 # Retriever 
 retriever:
-  top_k: 5                           # number of chunks returned per query
-  score_threshold: -1.0               # minimum similarity score to include a chunk
+  top_k: 5                           
+  score_threshold: 2.1             # L2 distance — lower = more similar
+                                   
 
 #  LLM
 llm:
