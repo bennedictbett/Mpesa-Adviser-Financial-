@@ -139,9 +139,10 @@ def ask(
     ]
 
     logger.info(
-        f"Calling Claude | "
-        f"model: {settings.llm.model} | "
-        f"max_tokens: {settings.llm.max_tokens}"
+        "Calling %s | model: %s | max_tokens: %d",
+        settings.llm.provider,
+        settings.llm.model,
+        settings.llm.max_tokens,
     )
 
     response = llm.invoke(messages)
