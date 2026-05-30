@@ -167,45 +167,113 @@ def ask(
     }
 
 
-def analyse_statement(question: str, history: list[dict] | None = None) -> dict:
+def analyse_statement(
+    question: str,
+    history: list[dict] | None = None,
+    transactions: list[dict] | None = None,
+) -> dict:
     """
-    Analyse a user's uploaded M-Pesa statement and give financial advice.
+    Analyse an uploaded M-Pesa statement and give financial advice.
 
-    This is a specialised version of ask() used when the user has uploaded
-    their personal M-Pesa statement and wants spending analysis,
-    budgeting advice, or financial insights from their own data.
-
-    The same RAG pipeline runs — the difference is the question is
-    framed around personal finance analysis so Claude gives advisory
-    responses rather than just factual lookups.
-
-    Common questions this handles:
-      - "How much did I spend last month?"
-      - "What do I spend most of my money on?"
-      - "How can I save KES 5,000 this month?"
-      - "How much did I send to family in April?"
-      - "Am I spending more than I earn?"
+    Full pipeline:
+      1. If transactions provided → categorise them
+      2. Build a rich context string with spending breakdown
+      3. Pass context + question to Claude/Llama for grounded advice
 
     Args:
-        question: The user's personal finance question
-        history:  Optional conversation history for follow-up questions
+        question:     The user's personal finance question
+        history:      Optional conversation history for follow-up questions
+        transactions: Optional pre-parsed transaction list from statement_parser.py
+                      If not provided, falls back to RAG retrieval only
 
     Returns:
-        dict: Same structure as ask() —
-              answer, sources, chunks_used, has_context, question
+        dict: answer, sources, chunks_used, has_context, question
+              Plus optional: categories, summary (if transactions provided)
     """
-    logger.info(f"Statement analysis request: '{question[:80]}'")
+    logger.info("Statement analysis request: '%s'", question[:80])
 
-    # Enrich the question with financial analysis framing so Claude
-    # knows to give advisory responses, not just factual citations
+    # ── If transactions provided, categorise and summarise ────
+    extra_context = ""
+    categories    = {}
+    summary       = {}
+
+    if transactions:
+        from src.rag.categoriser import categorise_transactions, summarise_by_category
+        from src.rag.statement_parser import get_statement_summary
+
+        # Categorise every transaction
+        categorised = categorise_transactions(transactions)
+        categories  = summarise_by_category(categorised)
+        summary     = get_statement_summary(transactions)
+
+        # Build a structured context string for the LLM
+        category_lines = "\n".join(
+            f"  - {cat}: KES {amount:,.2f}"
+            for cat, amount in categories.items()
+        )
+
+        extra_context = f"""
+STATEMENT ANALYSIS:
+Total transactions: {summary.get('total_transactions', 0)}
+Total spent:        KES {summary.get('total_spent', 0):,.2f}
+Total received:     KES {summary.get('total_received', 0):,.2f}
+Date range:         {summary.get('date_range', {}).get('from')} → {summary.get('date_range', {}).get('to')}
+
+SPENDING BY CATEGORY:
+{category_lines}
+
+TOP TRANSACTIONS:
+{_format_top_transactions(categorised)}
+"""
+
+    # ── Enrich question with financial analysis framing ───────
     enriched_question = (
         f"{question}\n\n"
-        f"[Please analyse the transaction data in the context, identify spending "
-        f"patterns, categorise transactions where possible, and give practical "
-        f"financial advice based on the actual data. Be specific with amounts in KES.]"
+        f"{extra_context}\n"
+        f"[Analyse the data above and give practical financial advice. "
+        f"Be specific with KES amounts. Suggest concrete ways to save or budget better.]"
     )
 
-    return ask(enriched_question, history)
+    result = ask(enriched_question, history)
+
+    # Attach category and summary data to response
+    if categories:
+        result["categories"] = categories
+    if summary:
+        result["summary"] = summary
+
+    return result
+
+
+def _format_top_transactions(transactions: list[dict], top_n: int = 5) -> str:
+    """
+    Format the top N transactions by amount for prompt context.
+
+    Args:
+        transactions: Categorised transaction list
+        top_n:        Number of top transactions to include
+
+    Returns:
+        str: Formatted string of top transactions
+    """
+    if not transactions:
+        return "No transactions available"
+
+    sorted_txns = sorted(
+        transactions,
+        key=lambda x: x.get("amount", 0),
+        reverse=True,
+    )[:top_n]
+
+    lines = []
+    for t in sorted_txns:
+        lines.append(
+            f"  - {t.get('recipient', 'Unknown'):25s} "
+            f"KES {t.get('amount', 0):>10,.2f}  "
+            f"[{t.get('category', 'Other')}]"
+        )
+
+    return "\n".join(lines)
 
 
 # Private helpers 

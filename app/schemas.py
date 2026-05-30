@@ -125,3 +125,11 @@ class HealthResponse(BaseModel):
     """
     status:  str = Field(..., description="'ok' if the app is running")
     version: str = Field(..., description="App version from config.yaml")
+
+class ParseTextRequest(BaseModel):
+    text: str = Field(
+        ...,
+        min_length=10,
+        description="Pasted M-Pesa statement text",
+        examples=["RJK81ABCDE 01/05/2026 Customer Transfer to JOHN KAMAU -850.00 12450.00"],
+    )

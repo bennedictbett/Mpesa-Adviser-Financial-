@@ -30,7 +30,9 @@ from app.schemas import (
     ChatRequest,
     ChatResponse,
     HealthResponse,
+    ParseTextRequest,
     UploadResponse,
+
 )
 from src.rag import settings
 from src.rag.chain import analyse_statement, ask
@@ -253,6 +255,46 @@ async def upload(
             detail="An error occurred while processing your file. Please try again.",
         )
 
+# ── POST /parse-text ──────────────────────────────────────────
+
+@router.post("/parse-text", summary="Parse pasted M-Pesa statement text")
+async def parse_text(
+    request: ParseTextRequest,
+    _: None = Depends(verify_api_keys),
+):
+    """
+    Accept pasted M-Pesa statement text, parse it into transactions,
+    categorise them, and return structured spending data.
+    """
+    from src.rag.statement_parser import parse_from_text, get_statement_summary
+    from src.rag.categoriser import categorise_transactions, summarise_by_category
+
+    try:
+        transactions = parse_from_text(request.text)
+
+        if not transactions:
+            raise HTTPException(
+                status_code=422,
+                detail="No transactions found in the pasted text. "
+                       "Make sure you copied the full M-Pesa statement."
+            )
+
+        categorised = categorise_transactions(transactions)
+        categories  = summarise_by_category(categorised)
+        summary     = get_statement_summary(transactions)
+
+        return {
+            "transactions": categorised,
+            "categories":   categories,
+            "summary":      summary,
+            "count":        len(transactions),
+        }
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error("Error in /parse-text: %s", e)
+        raise HTTPException(status_code=500, detail="Failed to parse statement.")
 
 # GET /health 
 
