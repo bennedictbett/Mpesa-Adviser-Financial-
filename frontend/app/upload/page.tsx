@@ -14,7 +14,7 @@ export default function UploadPage() {
   const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState("");
 
-  const API = process.env.NEXT_PUBLIC_API_URL;
+  const API = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
   async function handlePdfUpload(file: File) {
     if (!file.name.endsWith(".pdf")) {
