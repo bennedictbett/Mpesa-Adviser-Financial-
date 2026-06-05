@@ -245,7 +245,7 @@ export default function DashboardPage() {
                         width={70}
                       />
                       <Tooltip
-                        formatter={(value: number) => [`KES ${value.toLocaleString()}`, "Amount"]}
+                        formatter={(value: any) => [`KES ${Number(value).toLocaleString()}`, "Amount"]}
                         contentStyle={{
                           background: "#1a1a1a",
                           border: "1px solid rgba(255,255,255,0.1)",
