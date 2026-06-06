@@ -43,7 +43,7 @@ app = FastAPI(
 
 
 # CORS middleware 
-# Allows the Streamlit frontend (running on a different port)
+# Allows the frontend (running on a different port)
 # to make requests to this FastAPI backend without being blocked
 # by the browser's same-origin policy.
 
@@ -52,6 +52,7 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",
         "http://127.0.0.1:3000",
+        "https://mpesa-adviser-financial.vercel.app",
         "https://*.vercel.app",
     ],
     allow_credentials=True,
