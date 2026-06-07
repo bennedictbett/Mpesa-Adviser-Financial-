@@ -24,9 +24,6 @@ env/
 tests/
 .pytest_cache/
 
-# ChromaDB — mounted as volume at runtime
-data/chroma_db/
-
 # VS Code
 .vscode/
 
