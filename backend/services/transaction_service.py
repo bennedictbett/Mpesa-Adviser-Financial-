@@ -23,6 +23,7 @@ Files that import from here:
 
 import logging
 from typing import Optional
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +67,50 @@ CATEGORY_KEYWORDS: dict[str, list[str]] = {
 # TODO (Phase 1 / database/): persist this to the transactions DB
 # once it exists, so it survives across runs — not just per-process.
 _llm_category_cache: dict[str, str] = {}
+
+from datetime import datetime
+
+
+def normalise_transaction_date(txn: dict) -> dict:
+    """
+    Parses the raw "DD/MM/YYYY" date string (and optional "HH:MM" time)
+    from statement_parser.py into a real datetime object, stored under
+    a new "parsed_date" key. Leaves the original "date"/"time" strings
+    untouched, since routes/UI may still want to display them as-is.
+
+    Falls back to None on unparseable dates rather than raising —
+    a single malformed row shouldn't break analytics for the whole
+    statement. Callers filtering by date should skip None values.
+    """
+    date_str = txn.get("date")
+    time_str = txn.get("time") or "00:00"
+
+    if not date_str:
+        txn["parsed_date"] = None
+        return txn
+
+    for fmt in ("%d/%m/%Y %H:%M", "%d-%m-%Y %H:%M", "%d/%m/%y %H:%M"):
+        try:
+            txn["parsed_date"] = datetime.strptime(f"{date_str} {time_str}", fmt)
+            return txn
+        except ValueError:
+            continue
+
+    logger.warning("Could not parse date '%s' for transaction %s", date_str, txn.get("receipt_no"))
+    txn["parsed_date"] = None
+    return txn
+
+
+def normalise_transaction_dates(transactions: list[dict]) -> list[dict]:
+    """Applies normalise_transaction_date() to a full list in place."""
+    for txn in transactions:
+        normalise_transaction_date(txn)
+
+    unparsed = sum(1 for t in transactions if t["parsed_date"] is None)
+    if unparsed:
+        logger.warning("%d/%d transactions had unparseable dates", unparsed, len(transactions))
+
+    return transactions
 
 
 def categorise_by_trans_type(txn: dict) -> Optional[str]:
@@ -135,7 +180,9 @@ def categorise_transaction(txn: dict, use_llm_fallback: bool = False) -> dict:
 
 
 def categorise_transactions(transactions: list[dict], use_llm_fallback: bool = False) -> list[dict]:
-    """Categorise a full list of parsed transactions in place."""
+    """Categorise and date-normalise a full list of parsed transactions in place."""
+    normalise_transaction_dates(transactions)
+
     for txn in transactions:
         categorise_transaction(txn, use_llm_fallback=use_llm_fallback)
 
