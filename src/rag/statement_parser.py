@@ -239,41 +239,41 @@ def _parse_line(line: str) -> Optional[dict]:
 def _parse_blocks(raw_text: str) -> list[dict]:
     """
     Parse statement as multi-line transaction blocks.
-
-    Some M-Pesa statement formats span a transaction across 2-3 lines.
-    This parser groups related lines and extracts transactions from blocks.
-
-    Args:
-        raw_text: Full statement text
-
-    Returns:
-        list[dict]: Parsed transactions
+    ...
     """
     transactions = []
 
-    # Split on receipt number pattern — start of each transaction
-    receipt_split = re.compile(r"(?=[A-Z0-9]{8,12}\s)")
-    blocks = receipt_split.split(raw_text)
+    # Find receipt-number-like boundaries: 8-12 alnum chars followed
+    # by whitespace, but ONLY where the token contains at least one
+    # digit — distinguishes real receipt numbers (e.g. "RJK81ABCDE")
+    # from all-caps merchant/recipient names (e.g. "SUPERMARKET",
+    # "QUICKMART") that would otherwise be misidentified as a new
+    # transaction boundary and split mid-transaction.
+    candidate_pattern = re.compile(r"(?=([A-Z0-9]{8,12})\s)")
+    boundaries = [
+        m.start() for m in candidate_pattern.finditer(raw_text)
+        if any(c.isdigit() for c in m.group(1))
+    ]
 
-    for block in blocks:
-        block = block.strip()
+    if not boundaries:
+        return transactions
+
+    boundaries.append(len(raw_text))  # end of text as final boundary
+
+    for start, end in zip(boundaries, boundaries[1:]):
+        block = raw_text[start:end].strip()
         if not block or len(block) < 20:
             continue
 
-        # Extract date
-        date_match = re.search(
-            r"(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})", block
-        )
+        date_match = re.search(r"(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})", block)
         if not date_match:
             continue
 
         date = date_match.group(1)
 
-        # Extract time
         time_match = re.search(r"\b(\d{1,2}:\d{2})\b", block)
         time = time_match.group(1) if time_match else None
 
-        # Extract all monetary amounts
         amounts = re.findall(r"-?[\d,]+\.\d{2}", block)
         if not amounts:
             continue
@@ -284,7 +284,6 @@ def _parse_blocks(raw_text: str) -> list[dict]:
         except ValueError:
             continue
 
-        # Receipt number — first word if alphanumeric
         first_word = block.split()[0] if block.split() else ""
         receipt_no = first_word if re.match(r"[A-Z0-9]{8,12}", first_word) else "UNKNOWN"
 
