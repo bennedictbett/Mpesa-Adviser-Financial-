@@ -47,9 +47,9 @@ retriever:
 #  LLM
 llm:
   provider: "groq"
-  model: "llama-3.3-70b-versatile"  # LLaMA 3.1 - fast + accurate
-  max_tokens: 1024                   # max tokens in the response
-  temperature: 0.0                   # 0 = deterministic, factual answers only
+  model: "openai/gpt-oss-120b"  # migrated from llama-3.3-70b-versatile (deprecated 2026-06-17)
+  max_tokens: 1024
+  temperature: 0.0
 
 # API
 api:
