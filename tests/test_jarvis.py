@@ -125,14 +125,12 @@ class TestAskJarvis:
         assert result == "I need more information to answer that."
         assert mock_client.chat.completions.create.call_count == 1
 
-    def test_single_tool_call_then_final_answer(self, mock_client, sample_transactions):
-        """
-        The core Jarvis flow: model requests a tool, we execute the REAL
-        analytics function, feed the result back, model explains it.
-        """
+    def test_single_tool_call_then_final_answer(self, mock_get_client, sample_transactions):
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+
         tool_call = _make_tool_call("get_spending_by_category", {"category": "Food", "month": "2026-08"})
 
-        # First call: model requests the tool. Second call: model gives final answer.
         mock_client.chat.completions.create.side_effect = [
             _make_response(tool_calls=[tool_call]),
             _make_response(content="You spent 500.0 KES on Food in August 2026."),
@@ -143,13 +141,10 @@ class TestAskJarvis:
         assert result == "You spent 500.0 KES on Food in August 2026."
         assert mock_client.chat.completions.create.call_count == 2
 
-    def test_tool_result_passed_to_model_is_the_real_computed_value(self, mock_client, sample_transactions):
-        """
-        Verifies the ACTUAL number from analytics_service.py (500.0) is
-        what gets sent back to the model — not something the model made
-        up. This is the test that would catch a regression where Jarvis
-        stops calling real tools and starts hallucinating numbers.
-        """
+    def test_tool_result_passed_to_model_is_the_real_computed_value(self, mock_get_client, sample_transactions):
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+
         tool_call = _make_tool_call("get_spending_by_category", {"category": "Food", "month": "2026-08"})
 
         mock_client.chat.completions.create.side_effect = [
@@ -159,16 +154,16 @@ class TestAskJarvis:
 
         ask_jarvis("How much did I spend on Food?", sample_transactions)
 
-        # Inspect the second call's messages — the tool result message
-        # must contain the real computed value (500.0), not a guess.
         second_call_messages = mock_client.chat.completions.create.call_args_list[1].kwargs["messages"]
         tool_result_messages = [m for m in second_call_messages if m.get("role") == "tool"]
 
         assert len(tool_result_messages) == 1
         assert json.loads(tool_result_messages[0]["content"]) == 500.0
 
-    def test_multiple_tool_calls_in_one_round(self, mock_client, sample_transactions):
-        """Model can request more than one tool in a single response."""
+    def test_multiple_tool_calls_in_one_round(self, mock_get_client, sample_transactions):
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+
         tool_call_1 = _make_tool_call(
             "get_spending_by_category", {"category": "Food", "month": "2026-08"}, call_id="call_1"
         )
@@ -185,12 +180,10 @@ class TestAskJarvis:
 
         assert result == "Food: 500, Transport: 200."
 
-    def test_tool_execution_error_is_caught_and_passed_back(self, mock_client, sample_transactions):
-        """
-        A bad month format should not crash the whole request — the
-        error should be reported back to the model as a tool result,
-        letting it recover (e.g. ask the user to clarify).
-        """
+    def test_tool_execution_error_is_caught_and_passed_back(self, mock_get_client, sample_transactions):
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+
         tool_call = _make_tool_call("get_spending_by_category", {"category": "Food", "month": "not-a-month"})
 
         mock_client.chat.completions.create.side_effect = [
@@ -201,20 +194,15 @@ class TestAskJarvis:
         result = ask_jarvis("How much did I spend last blorp?", sample_transactions)
 
         assert "clarify" in result.lower()
-        # Confirm the error was actually surfaced in the tool result, not swallowed silently
         second_call_messages = mock_client.chat.completions.create.call_args_list[1].kwargs["messages"]
         tool_result = next(m for m in second_call_messages if m.get("role") == "tool")
         assert "error" in json.loads(tool_result["content"])
 
-    def test_hits_max_tool_rounds_and_returns_fallback_message(self, mock_client, sample_transactions):
-        """
-        Safety cap: if the model keeps requesting tools indefinitely
-        without ever giving a final answer, Jarvis must stop after
-        MAX_TOOL_ROUNDS rather than looping (and spending money) forever.
-        """
-        tool_call = _make_tool_call("get_spending_by_category", {"category": "Food", "month": "2026-08"})
+    def test_hits_max_tool_rounds_and_returns_fallback_message(self, mock_get_client, sample_transactions):
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
 
-        # Every single call returns a tool_call, never a final answer
+        tool_call = _make_tool_call("get_spending_by_category", {"category": "Food", "month": "2026-08"})
         mock_client.chat.completions.create.return_value = _make_response(tool_calls=[tool_call])
 
         result = ask_jarvis("Loop forever?", sample_transactions)
@@ -222,8 +210,9 @@ class TestAskJarvis:
         assert mock_client.chat.completions.create.call_count == MAX_TOOL_ROUNDS
         assert "wasn't able" in result.lower() or "rephrase" in result.lower()
 
-    def test_system_prompt_is_included(self, mock_client, sample_transactions):
-        """The 'never calculate yourself' constraint must actually be sent to the model."""
+    def test_system_prompt_is_included(self, mock_get_client, sample_transactions):
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
         mock_client.chat.completions.create.return_value = _make_response(content="Fine.")
 
         ask_jarvis("Anything", sample_transactions)
