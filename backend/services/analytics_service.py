@@ -151,3 +151,43 @@ def get_monthly_comparison(transactions: list[dict], month_a: str, month_b: str)
         "breakdown_b": breakdown_b,
         "deltas": dict(sorted(deltas.items(), key=lambda kv: -abs(kv[1]))),
     }
+
+def _months_present(transactions: list[dict]) -> set[str]:
+    """All 'YYYY-MM' months that actually have at least one transaction
+    with a valid parsed_date. Used to avoid treating a month with no
+    statement data as a real zero-spending month."""
+    return {
+        f"{t['parsed_date'].year:04d}-{t['parsed_date'].month:02d}"
+        for t in transactions
+        if t.get("parsed_date")
+    }
+
+
+def get_historical_average_spending(
+    transactions: list[dict],
+    category: str,
+    before_month: str,
+    lookback_months: int = 3,
+) -> float | None:
+    """
+    Average spend in `category` across up to `lookback_months` months
+    that precede `before_month` AND have actual data present.
+
+    Returns None if there isn't at least one prior month of data —
+    a budget suggestion built on zero history isn't a real suggestion.
+    """
+    try:
+        target_year, target_month_num = (int(p) for p in before_month.split("-"))
+    except (ValueError, AttributeError):
+        raise ValueError(f"before_month must be 'YYYY-MM', got: {before_month!r}")
+
+    present_months = sorted(_months_present(transactions))
+    target_index = f"{target_year:04d}-{target_month_num:02d}"
+
+    prior_months = [m for m in present_months if m < target_index][-lookback_months:]
+
+    if not prior_months:
+        return None
+
+    totals = [get_spending_by_category(transactions, category, month) for month in prior_months]
+    return round(sum(totals) / len(totals), 2)
