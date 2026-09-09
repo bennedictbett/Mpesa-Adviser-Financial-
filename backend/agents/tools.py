@@ -77,13 +77,32 @@ TOOL_SCHEMAS = [
     },
 ]
 
+TOOL_SCHEMAS.append({
+    "type": "function",
+    "function": {
+        "name": "get_budget_status",
+        "description": (
+            "Whether spending in a category is under, near, or over budget "
+            "for a given month. If the user hasn't set a budget, this uses "
+            "an average of their past months' spending as a suggested budget."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "category": {"type": "string"},
+                "month": {"type": "string", "description": "Format YYYY-MM"},
+            },
+            "required": ["category", "month"],
+        },
+    },
+})
 
-def make_tool_dispatcher(transactions: list[dict]):
-    """
-    Returns a dispatch(name, arguments) function bound to one
-    session's transactions, so each chat request scopes tool calls
-    to only that session's data — never another session's.
-    """
+
+def make_tool_dispatcher(transactions: list[dict], budget_overrides: dict[str, float] | None = None):
+    from backend.services.budget_service import get_budget_status  # avoid circular import
+
+    budget_overrides = budget_overrides or {}
+
     handlers = {
         "get_spending_summary": lambda args: get_spending_summary(transactions, month=args["month"]),
         "get_spending_by_category": lambda args: get_spending_by_category(
@@ -92,6 +111,42 @@ def make_tool_dispatcher(transactions: list[dict]):
         "get_category_breakdown": lambda args: get_category_breakdown(transactions, month=args["month"]),
         "get_monthly_comparison": lambda args: get_monthly_comparison(
             transactions, month_a=args["month_a"], month_b=args["month_b"]
+        ),
+        "get_budget_status": lambda args: get_budget_status(
+            transactions,
+            category=args["category"],
+            month=args["month"],
+            override_amount=budget_overrides.get(args["category"]),
+        ),
+    }
+
+    def dispatch(name: str, arguments: dict):
+        if name not in handlers:
+            raise ValueError(f"Unknown tool: {name}")
+        return handlers[name](arguments)
+
+    return dispatch
+
+
+def make_tool_dispatcher(transactions: list[dict], budget_overrides: dict[str, float] | None = None):
+    from backend.services.budget_service import get_budget_status  # avoid circular import
+
+    budget_overrides = budget_overrides or {}
+
+    handlers = {
+        "get_spending_summary": lambda args: get_spending_summary(transactions, month=args["month"]),
+        "get_spending_by_category": lambda args: get_spending_by_category(
+            transactions, category=args["category"], month=args["month"]
+        ),
+        "get_category_breakdown": lambda args: get_category_breakdown(transactions, month=args["month"]),
+        "get_monthly_comparison": lambda args: get_monthly_comparison(
+            transactions, month_a=args["month_a"], month_b=args["month_b"]
+        ),
+        "get_budget_status": lambda args: get_budget_status(
+            transactions,
+            category=args["category"],
+            month=args["month"],
+            override_amount=budget_overrides.get(args["category"]),
         ),
     }
 
