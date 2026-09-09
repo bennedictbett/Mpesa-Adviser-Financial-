@@ -1,22 +1,11 @@
 """
-Jarvis: the LLM-as-adviser layer. Calls Groq with function-calling,
-executes real analytics_service.py functions for any tool the model
-requests, and returns the model's final explanation.
-
-Architecture (see also backend/agents/tools.py):
-    User question
-        -> Jarvis (LLM decides which tool(s) to call)
-        -> real analytics_service.py function executes
-        -> real number goes back to the LLM
-        -> Jarvis explains the real number in plain language
-
-The LLM is never shown raw transactions and never does arithmetic
-itself — see prompts.py's system prompt for the explicit constraint.
+Jarvis: the LLM-as-adviser layer. ...
 """
 
 import json
 import logging
 import os
+from functools import lru_cache
 
 from groq import Groq
 
@@ -28,7 +17,26 @@ logger = logging.getLogger(__name__)
 MODEL = "openai/gpt-oss-120b"
 MAX_TOOL_ROUNDS = 4  # safety cap against runaway tool-call loops
 
-_client = Groq(api_key=os.environ["GROQ_API_KEY"])
+
+@lru_cache(maxsize=1)
+def get_client() -> Groq:
+    """
+    Lazily creates the Groq client on first use, not at import time.
+
+    This matters for two reasons:
+      1. Importing this module (e.g. in tests) must not require
+         GROQ_API_KEY to be set — only actually calling ask_jarvis()
+         should need it.
+      2. Tests can patch this function directly instead of needing
+         the real environment variable present.
+    """
+    api_key = os.environ.get("GROQ_API_KEY")
+    if not api_key:
+        raise ValueError(
+            "GROQ_API_KEY is missing. Set it in your .env file — "
+            "see console.groq.com for a free key."
+        )
+    return Groq(api_key=api_key)
 
 
 def ask_jarvis(question: str, transactions: list[dict]) -> str:
@@ -36,11 +44,11 @@ def ask_jarvis(question: str, transactions: list[dict]) -> str:
     Args:
         question: the user's natural-language question
         transactions: the full list of transactions for this session
-                       (already categorised + date-normalised)
 
     Returns:
         Jarvis's final plain-language answer.
     """
+    client = get_client()
     dispatch = make_tool_dispatcher(transactions)
 
     messages = [
@@ -49,7 +57,7 @@ def ask_jarvis(question: str, transactions: list[dict]) -> str:
     ]
 
     for round_num in range(MAX_TOOL_ROUNDS):
-        response = _client.chat.completions.create(
+        response = client.chat.completions.create(
             model=MODEL,
             messages=messages,
             tools=TOOL_SCHEMAS,
@@ -58,11 +66,8 @@ def ask_jarvis(question: str, transactions: list[dict]) -> str:
         message = response.choices[0].message
 
         if not message.tool_calls:
-            # No more tools requested — this is Jarvis's final answer.
             return message.content
 
-        # Model wants to call one or more tools. Append its request,
-        # execute each real function, append the results, loop back.
         messages.append(message)
 
         for tool_call in message.tool_calls:
