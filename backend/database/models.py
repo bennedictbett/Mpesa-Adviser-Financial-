@@ -43,3 +43,11 @@ class TransactionRecord(Base):
             "category": self.category,
             "parsed_date": self.parsed_date,
         }
+
+class BudgetOverride(Base):
+    __tablename__ = "budget_overrides"
+
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(String, index=True, nullable=False)
+    category = Column(String, nullable=False)
+    amount = Column(Float, nullable=False)
