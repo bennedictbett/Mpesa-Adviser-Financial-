@@ -39,7 +39,7 @@ def get_client() -> Groq:
     return Groq(api_key=api_key)
 
 
-def ask_jarvis(question: str, transactions: list[dict]) -> str:
+def ask_jarvis(question: str, transactions: list[dict], budget_overrides: dict[str, float] | None = None) -> str:
     """
     Args:
         question: the user's natural-language question
@@ -49,7 +49,7 @@ def ask_jarvis(question: str, transactions: list[dict]) -> str:
         Jarvis's final plain-language answer.
     """
     client = get_client()
-    dispatch = make_tool_dispatcher(transactions)
+    dispatch = make_tool_dispatcher(transactions, budget_overrides)
 
     messages = [
         {"role": "system", "content": JARVIS_SYSTEM_PROMPT},
