@@ -16,6 +16,7 @@ from backend.services.analytics_service import (
     get_spending_by_category,
     get_category_breakdown,
     get_monthly_comparison,
+    get_historical_average_spending,  # add this
 )
 
 
@@ -150,3 +151,65 @@ class TestGetMonthlyComparison:
     def test_includes_categories_present_in_either_month(self, sample_transactions):
         comparison = get_monthly_comparison(sample_transactions, "2026-08", "2026-09")
         assert set(comparison["deltas"].keys()) == {"Food", "Transport", "Cash Withdrawal", "Airtime"}
+
+class TestGetHistoricalAverageSpending:
+    @pytest.fixture
+    def multi_month_transactions(self):
+        """Three prior months of Food spending, plus the target month."""
+        return [
+            _txn(400.0, "payment", "Food", "01/05/2026"),   # May
+            _txn(600.0, "payment", "Food", "01/06/2026"),   # June
+            _txn(800.0, "payment", "Food", "01/07/2026"),   # July
+            _txn(999.0, "payment", "Food", "01/08/2026"),   # August (target month — must be excluded)
+        ]
+
+    def test_averages_prior_months_only(self, multi_month_transactions):
+        result = get_historical_average_spending(
+            multi_month_transactions, "Food", before_month="2026-08", lookback_months=3
+        )
+        # (400 + 600 + 800) / 3 = 600.0 — August's 999 must NOT be included
+        assert result == 600.0
+
+    def test_respects_lookback_months_limit(self, multi_month_transactions):
+        result = get_historical_average_spending(
+            multi_month_transactions, "Food", before_month="2026-08", lookback_months=2
+        )
+        # Only the 2 most recent prior months: June (600) + July (800) / 2 = 700.0
+        assert result == 700.0
+
+    def test_returns_none_with_no_prior_data(self):
+        # Only the target month itself has data — no history to average.
+        txns = [_txn(500.0, "payment", "Food", "01/08/2026")]
+        result = get_historical_average_spending(txns, "Food", before_month="2026-08")
+        assert result is None
+
+    def test_zero_history_in_category_returns_zero_not_none(self, multi_month_transactions):
+        """
+        Distinguishes two different situations: a month with NO statement
+        data at all (excluded from the average, tested above) vs. a month
+        WITH data where this specific category simply had no spending
+        (correctly averages to 0.0 — a real, reportable fact).
+        """
+        result = get_historical_average_spending(
+            multi_month_transactions, "Utilities", before_month="2026-08"
+        )
+        assert result == 0.0
+
+    def test_month_with_no_transactions_at_all_is_not_treated_as_zero(self):
+        """
+        Regression guard: a calendar month with NO statement data present
+        must be excluded from the average entirely — not silently counted
+        as a real $0 month, which would drag the average down incorrectly.
+        """
+        txns = [
+            _txn(1000.0, "payment", "Food", "01/06/2026"),  # June has data
+            # July has NO transactions at all — no statement covers it
+            _txn(500.0, "payment", "Food", "01/08/2026"),   # target month
+        ]
+        result = get_historical_average_spending(txns, "Food", before_month="2026-08", lookback_months=3)
+        # Only June counts — July isn't a real $0 month, it's just missing data
+        assert result == 1000.0
+
+    def test_invalid_before_month_format_raises(self, multi_month_transactions):
+        with pytest.raises(ValueError):
+            get_historical_average_spending(multi_month_transactions, "Food", before_month="August 2026")
