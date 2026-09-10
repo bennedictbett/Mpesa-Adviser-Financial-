@@ -98,12 +98,12 @@ class TestToolDispatcher:
         dispatch = make_tool_dispatcher(sample_transactions)
         schema_names = {schema["function"]["name"] for schema in TOOL_SCHEMAS}
 
-        # Minimal valid args per tool, just to prove dispatch doesn't raise "Unknown tool"
         sample_args = {
             "get_spending_summary": {"month": "2026-08"},
             "get_spending_by_category": {"category": "Food", "month": "2026-08"},
             "get_category_breakdown": {"month": "2026-08"},
             "get_monthly_comparison": {"month_a": "2026-07", "month_b": "2026-08"},
+            "get_budget_status": {"category": "Food", "month": "2026-08"},
         }
         for name in schema_names:
             dispatch(name, sample_args[name])  # raises if handler missing
