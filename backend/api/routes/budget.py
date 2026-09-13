@@ -1,7 +1,7 @@
 """Set or update a user's budget override for a category."""
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from backend.database.connection import get_db
@@ -11,8 +11,12 @@ router = APIRouter(prefix="/api/v1", tags=["budget"])
 
 
 class SetBudgetRequest(BaseModel):
-    category: str
-    amount: float
+    category: str = Field(..., min_length=1, max_length=50)
+    # Bounds chosen to reject obviously-invalid input (negative, zero,
+    # or absurdly large amounts) without guessing at a "correct" budget
+    # size — 10 million KES/month is far beyond any plausible personal
+    # budget but still leaves room for legitimate high-income users.
+    amount: float = Field(..., gt=0, le=10_000_000)
 
 
 class SetBudgetResponse(BaseModel):
