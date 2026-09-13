@@ -111,14 +111,21 @@ Being explicit about these rather than leaving them implicit:
    but this is security-through-obscurity, not real authorization.
    A production version would need a login/auth layer.
 
-2. **The LLM-fallback categoriser path is stubbed.**
-   `transaction_service.categorise_by_llm` currently returns
-   `"Other"` for any transaction the keyword rules can't place,
-   rather than actually calling an LLM. This was a deliberate
-   sequencing choice (validate the deterministic pipeline before
-   adding a non-deterministic fallback) but means the real
-   "uncategorised" rate on messy, real-world statements hasn't yet
-   been measured.
+2. 2. **The LLM-fallback categoriser path is stubbed**, and the
+   keyword-only categoriser's real "Other" rate has now been
+   measured against a realistic messy statement
+   (`scripts/measure_categoriser.py`): **25%**, with every
+   remaining "Other" case being a genuine person-to-person transfer
+   (e.g. "Customer Transfer to JOHN KAMAU") — not a keyword gap.
+   This is an inherent limitation of categorising by recipient/details
+   text alone: there is no way to know whether money sent to a named
+   individual was for rent, a gift, or splitting a bill, without a
+   contacts/labeling feature that doesn't exist yet. `categorise_by_llm`
+   remains a stub returning `"Other"` for anything unmatched; wiring
+   a real LLM call here would need to be weighed against its cost and
+   non-determinism (see the earlier hybrid-categoriser design
+   discussion) versus the alternative of a user-facing "label this
+   person" feature.
 
 3. **No CORS configuration or HTTPS enforcement** — appropriate for
    local development, not for a public deployment.
