@@ -43,10 +43,12 @@ CATEGORY_KEYWORDS: dict[str, list[str]] = {
         "naivas", "quickmart", "carrefour", "java", "kfc",
         "chicken inn", "restaurant", "hotel", "eatery", "chandarana",
         "cleanshelf", "supermarket", "butchery", "bakery",
+        "grocery", "groceries", "kiosk",  # added — caught real gaps
     ],
     "Transport": [
         "uber", "bolt", "little cab", "matatu", "sacco",
         "shell", "total energies", "rubis", "petrol", "fuel",
+        "carwash",  # added
     ],
     "Utilities": [
         "kenya power", "kplc", "zuku", "safaricom home", "dstv",
@@ -58,6 +60,12 @@ CATEGORY_KEYWORDS: dict[str, list[str]] = {
     ],
     "Business": [
         "ltd", "limited", "enterprises", "traders", "supplies",
+    ],
+    "Personal Care": [  # new category — caught real gap
+        "kinyozi", "salon", "barbershop", "spa",
+    ],
+    "Giving": [  # new category — caught real gap
+        "church", "offering", "tithe", "harambee", "fundraiser",
     ],
 }
 

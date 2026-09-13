@@ -48,7 +48,7 @@ TRANSACTION_TYPES = {
     "withdraw": ["withdraw cash", "atm withdrawal", "agent withdrawal"],
     "payment":  ["pay bill", "buy goods", "lipa na mpesa", "paybill"],
     "airtime":  ["airtime purchase", "airtime", "data bundle"],
-    "charges":  ["transaction cost", "mpesa charges", "service charge"],
+    "charges":  ["transaction cost", "mpesa charges", "m-pesa charge", "service charge"],
     "deposit":  ["deposit", "received from"],
 }
 
