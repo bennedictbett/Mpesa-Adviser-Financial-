@@ -56,6 +56,8 @@ def parse_text(payload: ParseTextRequest, db: Session = Depends(get_db)):
     return _ingest(raw_transactions, db)
 
 
+MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB — generous for a text-heavy statement PDF
+
 @router.post("/upload", response_model=UploadResponse)
 def upload_statement(file: UploadFile = File(...), db: Session = Depends(get_db)):
     if not file.filename.lower().endswith(".pdf"):
@@ -64,8 +66,22 @@ def upload_statement(file: UploadFile = File(...), db: Session = Depends(get_db)
     import tempfile
     from pathlib import Path
 
+    contents = file.file.read()
+
+    # Check actual byte count, not just the Content-Length header —
+    # a header can be missing or spoofed, but the real byte count
+    # read into memory cannot lie.
+    if len(contents) > MAX_UPLOAD_SIZE_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large. Maximum size is {MAX_UPLOAD_SIZE_BYTES // (1024*1024)}MB.",
+        )
+
+    if len(contents) == 0:
+        raise HTTPException(status_code=422, detail="Uploaded file is empty.")
+
     with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
-        tmp.write(file.file.read())
+        tmp.write(contents)
         tmp_path = Path(tmp.name)
 
     try:
