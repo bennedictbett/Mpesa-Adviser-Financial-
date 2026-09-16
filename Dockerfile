@@ -1,6 +1,6 @@
-#  M-Pesa Financial Advisor — Dockerfile 
+# M-Pesa Financial Advisor — Dockerfile
 
-#  Stage 1: Builder 
+# Stage 1: Builder
 FROM python:3.11-slim AS builder
 
 WORKDIR /app
@@ -15,7 +15,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
 
-# Stage 2: Runtime 
+# Stage 2: Runtime
 FROM python:3.11-slim AS runtime
 
 WORKDIR /app
@@ -26,11 +26,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY --from=builder /install /usr/local
 
-# Copy application source code
+# Copy application source code.
+# src/ is still needed — backend/api/routes/transactions.py imports
+# src.rag.statement_parser for PDF/text parsing.
+# config/ still needed — src/rag/llm.py reads settings.llm.model etc.
 COPY src/       ./src/
-COPY app/       ./app/
+COPY backend/   ./backend/
 COPY config/    ./config/
-COPY data/      ./data/
 
 # Never run as root in production
 RUN useradd --create-home --shell /bin/bash appuser
@@ -39,7 +41,9 @@ USER appuser
 
 EXPOSE 8000
 
+# backend/main.py exposes GET /health (not /api/v1/health, which was
+# the old app/ RAG backend's path).
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')"
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
