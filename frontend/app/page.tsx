@@ -11,7 +11,7 @@ export default function LandingPage() {
   useEffect(() => {
     setVisible(true);
     // Check if backend is alive
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/health`)
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"}/health`)
       .then((r) => r.json())
       .then(() => setApiOk(true))
       .catch(() => setApiOk(false));
