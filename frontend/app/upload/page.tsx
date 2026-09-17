@@ -37,7 +37,7 @@ export default function UploadPage() {
       }
       const data = await res.json();
       setState("success");
-      localStorage.setItem("uploadResult", JSON.stringify(data));
+      localStorage.setItem("sessionId", data.session_id);
       setTimeout(() => router.push("/dashboard"), 1500);
     } catch (e: any) {
       setError(e.message || "Upload failed. Please try again.");
@@ -57,7 +57,7 @@ export default function UploadPage() {
       const res = await fetch(`${API}/api/v1/parse-text`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: pastedText }),
+        body: JSON.stringify({ statement_text: pastedText }),
       });
       if (!res.ok) {
         const err = await res.json();
@@ -65,7 +65,7 @@ export default function UploadPage() {
       }
       const data = await res.json();
       setState("success");
-      localStorage.setItem("statementData", JSON.stringify(data));
+      localStorage.setItem("sessionId", data.session_id);
       setTimeout(() => router.push("/dashboard"), 1500);
     } catch (e: any) {
       setError(e.message || "Could not parse statement. Please try again.");
