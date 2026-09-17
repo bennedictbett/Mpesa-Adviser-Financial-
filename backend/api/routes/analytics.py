@@ -18,6 +18,7 @@ from backend.services.analytics_service import (
     get_spending_summary,
     get_category_breakdown,
     get_monthly_comparison,
+    get_transactions,
 )
 
 router = APIRouter(prefix="/api/v1", tags=["analytics"])
@@ -49,3 +50,12 @@ def monthly_comparison(session_id: str, month_a: str, month_b: str, db: Session 
         return get_monthly_comparison(txns, month_a=month_a, month_b=month_b)
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
+
+@router.get("/{session_id}/transactions")
+def list_transactions(session_id: str, month: str | None = None, db: Session = Depends(get_db)):
+    txns = get_session_transactions(session_id, db)
+    try:
+        result = get_transactions(txns, month=month)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    return {"transactions": result}
