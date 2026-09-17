@@ -46,11 +46,73 @@ TRANSACTION_TYPES = {
     "sent":     ["customer transfer to", "send money", "transfer to"],
     "received": ["customer transfer from", "receive money", "transfer from"],
     "withdraw": ["withdraw cash", "atm withdrawal", "agent withdrawal"],
-    "payment":  ["pay bill", "buy goods", "lipa na mpesa", "paybill"],
+    "payment":  ["pay bill", "buy goods", "lipa na mpesa", "paybill", "payment to"],
     "airtime":  ["airtime purchase", "airtime", "data bundle"],
     "charges":  ["transaction cost", "mpesa charges", "m-pesa charge", "service charge"],
     "deposit":  ["deposit", "received from"],
 }
+
+def _parse_bracket_notation(raw_text: str) -> list[dict]:
+    """
+    Parses the bracket/semicolon statement format, typically produced
+    by SMS/USSD (*334#) mini-statement exports:
+
+        [20260917; ;Customer Send Money; 07****kha;Ksh40.00]Completed
+
+    Fields: YYYYMMDD date; (blank, reserved); description/type;
+    masked recipient (phone or business name); Ksh<amount>.
+
+    This format has no receipt number and no running balance, unlike
+    the tabular formats other parsers here handle — both fields are
+    left as None, which the rest of the pipeline already tolerates
+    (TransactionRecord's columns are nullable).
+
+    A trailing summary line like "Transaction cost, Ksh0.00." sits
+    outside any bracket and is correctly ignored by this pattern —
+    it's a statement-level total, not a transaction.
+    """
+    pattern = re.compile(
+        r"\[(\d{8})"                    # date: YYYYMMDD
+        r";\s*;"                        # blank reserved field
+        r"([^;]+);"                     # description / transaction type
+        r"([^;]+);"                     # masked recipient
+        r"Ksh([\d,]+\.\d{2})"           # amount
+        r"\]"
+    )
+
+    transactions = []
+
+    for match in pattern.finditer(raw_text):
+        date_raw, description, recipient_raw, amount_str = match.groups()
+
+        # YYYYMMDD -> DD/MM/YYYY, matching every other parser's date
+        # format here, so transaction_service.py's date normaliser
+        # needs no changes to support this format too.
+        year, month, day = date_raw[:4], date_raw[4:6], date_raw[6:8]
+        date = f"{day}/{month}/{year}"
+
+        description = description.strip()
+        recipient = recipient_raw.strip()
+
+        try:
+            amount = float(amount_str.replace(",", ""))
+        except ValueError:
+            continue
+
+        trans_type, _ = _classify_transaction(description)
+
+        transactions.append({
+            "receipt_no": None,
+            "date":       date,
+            "time":       None,
+            "details":    f"{description} {recipient}"[:200],
+            "recipient":  recipient,
+            "amount":     amount,
+            "trans_type": trans_type,
+            "balance":    None,
+        })
+
+    return transactions
 
 
 #  PDF input 
@@ -115,27 +177,6 @@ def extract_text_from_statement_pdf(pdf_path: str | Path) -> str:
 #  Core parser
 
 def parse_statement_text(raw_text: str) -> list[dict]:
-    """
-    Parse raw M-Pesa statement text into structured transaction dicts.
-
-    Handles both PDF-extracted text and directly pasted statement text.
-    Uses regex patterns to identify transaction rows regardless of
-    minor formatting differences between M-Pesa statement versions.
-
-    Args:
-        raw_text: Raw text from PDF extraction or direct paste
-
-    Returns:
-        list[dict]: List of structured transaction dicts, each with:
-                    - receipt_no  (str)   M-Pesa receipt number
-                    - date        (str)   transaction date DD/MM/YYYY
-                    - time        (str)   transaction time HH:MM
-                    - details     (str)   full transaction description
-                    - recipient   (str)   extracted recipient name
-                    - amount      (float) transaction amount in KES
-                    - trans_type  (str)   sent|received|withdraw|payment|airtime
-                    - balance     (float) account balance after transaction
-    """
     if not raw_text or not raw_text.strip():
         logger.warning("Empty text passed to parse_statement_text()")
         return []
@@ -149,12 +190,10 @@ def parse_statement_text(raw_text: str) -> list[dict]:
         line = line.strip()
         if not line:
             continue
-
         transaction = _parse_line(line)
         if transaction:
             transactions.append(transaction)
 
-    # If line-by-line didn't work well, try block parsing
     if len(transactions) < 3:
         logger.info(
             "Line parser found %d transactions — trying block parser",
@@ -162,10 +201,17 @@ def parse_statement_text(raw_text: str) -> list[dict]:
         )
         transactions = _parse_blocks(raw_text)
 
-    logger.info(
-        "Parsed %d transactions from statement", len(transactions)
-    )
+    # Only fall through to bracket-notation if the prior tiers found
+    # NOTHING — unlike the line->block fallback above, this must not
+    # use the same "< 3" heuristic, since that would silently discard
+    # a valid 1- or 2-transaction result the block parser already
+    # found correctly (this exact bug broke the SUPERMARKET/CHARGE
+    # regression tests on first attempt — see tests/test_statement_parser.py).
+    if not transactions:
+        logger.info("Block parser found 0 transactions — trying bracket-notation parser")
+        transactions = _parse_bracket_notation(raw_text)
 
+    logger.info("Parsed %d transactions from statement", len(transactions))
     return transactions
 
 
