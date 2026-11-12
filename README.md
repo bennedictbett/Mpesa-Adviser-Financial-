@@ -1,7 +1,6 @@
-cat > /mnt/user-data/outputs/README.md << 'EOF'
-# M-Pesa Financial Advisor 
+# M-Pesa Financial Advisor *Built with LangChain · ChromaDB · Groq · FastAPI · Next.js*
 
-> A RAG-powered personal finance coach for Kenyans. Upload your M-Pesa statement PDF and ask natural language questions about your spending, saving, and sending habits. Answers are cited directly from your real transaction data — no guessing, no generic advice.
+> A RAG-powered personal finance coach for Kenyans. Upload your M-Pesa statement PDF and ask natural language questions about your spending, saving, and sending habits. Answers are cited directly from your real transaction data — Answers are grounded in your own transaction data and official Safaricom/CBK documents, with the retrieved sources shown alongside each answer.
 
 **Live demo:** [mpesa-adviser-financial.vercel.app](https://mpesa-adviser-financial.vercel.app)
 
@@ -219,6 +218,13 @@ pytest tests/ -v
 
 ---
 
+## Limitations and next steps
+
+- **Privacy:** uploaded statements contain sensitive financial data and the question text is sent to Groq's API. Statements should not be stored beyond the session. [Confirm what the code actually does, then state it plainly.]
+- **Categorisation accuracy is unmeasured.** The keyword and LLM categoriser has not been evaluated against hand-labelled transactions. Transfers to phone numbers are all labelled "Family", which is a heuristic.
+- **No RAG evaluation yet.** The 28 tests cover the loader, vector store, retriever and pipeline, but answer quality (faithfulness, retrieval recall) is not measured.
+- **Next:** hand-label ~200 transactions to measure categoriser accuracy; build a small question set to evaluate retrieval and answer faithfulness.
+
 ## Skills Demonstrated
 
 - **RAG architecture** — end-to-end retrieval augmented generation pipeline
@@ -244,7 +250,3 @@ pytest tests/ -v
 ---
 
 *Built with LangChain · ChromaDB · Groq · FastAPI · Next.js*
-EOF
-Output
-
-exit code 0
